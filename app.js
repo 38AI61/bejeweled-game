@@ -141,6 +141,11 @@
       await wait(260);
     }
 
+    // Remove any lingering animation classes so the DOM mirrors pure state.
+    for (const el of boardEl.querySelectorAll('.gem')) {
+      el.classList.remove('pop', 'fall', 'new', 'sel', 'hint');
+    }
+
     if (result.cascades >= 2) {
       bestCascade = Math.max(bestCascade, result.cascades);
       toast(`Cascade x${result.cascades}! +${result.gained}`);
@@ -187,14 +192,10 @@
   boardEl.addEventListener('click', onCellClick);
   document.getElementById('shuffle').addEventListener('click', () => {
     if (animating || game.status !== 'playing') return;
-    const r = ensurePlayable(game);
-    if (r.shuffled) {
-      render(game.board);
-      toast('Shuffled!');
-      paintStats();
-    } else {
-      toast('Board already has moves.');
-    }
+    const { shuffleBoard } = window.Game;
+    shuffleBoard(game, game.rng); // free action: never consumes a move
+    render(game.board);
+    toast('Shuffled!');
   });
 
   newGame();
