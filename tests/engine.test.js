@@ -247,8 +247,17 @@ test('resolveBoard includes the pre-clear board in each onClear event', () => {
     [0, 1, 2, 3, 1],
   ];
   let seen = null;
-  resolveBoard(board, { colors: 5, rng: makeRng([0.0, 0.5, 0.7]), onClear: (e) => { if (!seen) seen = e.board; } });
+  let seenAfter = null;
+  resolveBoard(board, {
+    colors: 5,
+    rng: makeRng([0.0, 0.5, 0.7]),
+    onClear: (e) => { if (!seen) { seen = e.board; seenAfter = e.after; } },
+  });
   assert.deepStrictEqual(seen, board, 'onClear must expose the pre-clear board for scoring');
+  assert.ok(seenAfter, 'onClear must expose the post-gravity board for animations');
+  assert.strictEqual(seenAfter.length, 5);
+  for (const row of seenAfter) for (const gem of row) assert.ok(gem !== null, 'after-board has no holes');
+  assert.notDeepStrictEqual(seenAfter, seen, 'after-board must differ from pre-clear board');
 });
 
 test('createBoard terminates and stays match-free even with a degenerate constant rng', () => {

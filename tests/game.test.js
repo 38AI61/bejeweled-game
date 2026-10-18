@@ -65,6 +65,30 @@ test('scoreFor grows superlinearly with run length', () => {
   assert.ok(scoreFor(5) > scoreFor(4));
 });
 
+test('trySwap forwards onClear events (boards, positions, cascade index) for UI animation', () => {
+  const rng = makeRng([]);
+  const game = createGame({ size: 6, colors: 5, moves: 20, rng });
+  const { canSwap } = require('../engine.js');
+  let move = null;
+  outer: for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 6; c++) {
+      if (c + 1 < 6 && canSwap(game.board, r, c, r, c + 1)) { move = [r, c, r, c + 1]; break outer; }
+      if (r + 1 < 6 && canSwap(game.board, r, c, r + 1, c)) { move = [r, c, r + 1, c]; break outer; }
+    }
+  }
+  assert.ok(move, 'must have a valid move');
+  const evts = [];
+  const result = trySwap(game, ...move, { onClear: (e) => evts.push(e) });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(evts.length, result.cascades, 'one event per cascade');
+  for (let i = 0; i < evts.length; i++) {
+    assert.strictEqual(evts[i].cascade, i);
+    assert.ok(Array.isArray(evts[i].positions) && evts[i].positions.length > 0);
+    assert.ok(evts[i].board, 'pre-clear board present');
+    assert.ok(evts[i].after, 'post-gravity board present');
+  }
+});
+
 test('game ends when movesLeft hits 0 (status won/over) and no swap is accepted after', () => {
   const rng = makeRng([]);
   const game = createGame({ size: 6, colors: 5, moves: 1, rng });

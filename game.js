@@ -46,7 +46,7 @@ function scoreEvent(e) {
   return gained;
 }
 
-function trySwap(game, r1, c1, r2, c2) {
+function trySwap(game, r1, c1, r2, c2, { onClear = null } = {}) {
   if (game.status !== 'playing') return { ok: false, reason: 'game-over' };
   if (!canSwap(game.board, r1, c1, r2, c2)) return { ok: false, reason: 'invalid' };
 
@@ -62,6 +62,7 @@ function trySwap(game, r1, c1, r2, c2) {
     onClear: (e) => {
       gained += scoreEvent(e);
       cascades++;
+      if (onClear) onClear(e);
     },
   });
   game.score += gained;

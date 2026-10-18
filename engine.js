@@ -116,10 +116,11 @@ function resolveBoard(board, { colors, rng = Math.random, onClear = null }) {
   for (;;) {
     const matches = findMatches(current);
     if (matches.length === 0 || cascade >= MAX_CASCADES) break;
-    if (onClear) onClear({ positions: matches, cascade, board: current });
     const cleared = current.map((row) => row.slice());
     for (const { r, c } of matches) cleared[r][c] = null;
-    current = resolveGravity(cleared, { colors, rng });
+    const after = resolveGravity(cleared, { colors, rng });
+    if (onClear) onClear({ positions: matches, cascade, board: current, after });
+    current = after;
     cascade++;
   }
   return current;
