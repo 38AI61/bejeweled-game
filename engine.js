@@ -7,11 +7,16 @@ function createBoard({ size, colors, rng = Math.random }) {
     const row = [];
     for (let c = 0; c < size; c++) {
       let gem;
+      let attempts = 0;
+      // A degenerate rng (constant output) would block the same gem forever,
+      // so retries are capped and a varying fallback fill takes over.
       do {
-        gem = Math.floor(rng() * colors);
+        gem = attempts < 20 ? Math.floor(rng() * colors) : (r * size + c + attempts) % colors;
+        attempts++;
       } while (
-        (c >= 2 && row[c - 1] === gem && row[c - 2] === gem) ||
-        (r >= 2 && board[r - 1][c] === gem && board[r - 2][c] === gem)
+        attempts <= 20 &&
+        ((c >= 2 && row[c - 1] === gem && row[c - 2] === gem) ||
+          (r >= 2 && board[r - 1][c] === gem && board[r - 2][c] === gem))
       );
       row.push(gem);
     }
@@ -111,7 +116,7 @@ function resolveBoard(board, { colors, rng = Math.random, onClear = null }) {
   for (;;) {
     const matches = findMatches(current);
     if (matches.length === 0 || cascade >= MAX_CASCADES) break;
-    if (onClear) onClear({ positions: matches, cascade });
+    if (onClear) onClear({ positions: matches, cascade, board: current });
     const cleared = current.map((row) => row.slice());
     for (const { r, c } of matches) cleared[r][c] = null;
     current = resolveGravity(cleared, { colors, rng });

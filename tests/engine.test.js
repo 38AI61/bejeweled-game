@@ -3,10 +3,12 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, resolveBoard } = require('../engine.js');
 
-// Deterministic rng for tests: replays a fixed list of values in order.
+// Deterministic rng for tests: replays a fixed list of values in order, then
+// falls back to a varying deterministic sequence (a constant fallback would
+// hang createBoard and create artificial matches in resolveGravity).
 function makeRng(values) {
   let i = 0;
-  return () => values[i++] ?? 0.99;
+  return () => values[i++] ?? ((i * 37) % 101) / 101;
 }
 
 // resolveBoard calls onClear(event) for each cascade step; helper collects them.
@@ -234,6 +236,25 @@ test('resolveBoard returns an equal board untouched when there is nothing to cle
   const { result, evts } = runResolve(board, 4, rng);
   assert.deepStrictEqual(result, board);
   assert.deepStrictEqual(evts, []);
+});
+
+test('resolveBoard includes the pre-clear board in each onClear event', () => {
+  const board = [
+    [0, 1, 1, 1, 2],
+    [3, 0, 2, 3, 1],
+    [1, 2, 0, 0, 2],
+    [2, 3, 1, 2, 0],
+    [0, 1, 2, 3, 1],
+  ];
+  let seen = null;
+  resolveBoard(board, { colors: 5, rng: makeRng([0.0, 0.5, 0.7]), onClear: (e) => { if (!seen) seen = e.board; } });
+  assert.deepStrictEqual(seen, board, 'onClear must expose the pre-clear board for scoring');
+});
+
+test('createBoard terminates and stays match-free even with a degenerate constant rng', () => {
+  const board = createBoard({ size: 8, colors: 6, rng: () => 0.42 });
+  assert.strictEqual(board.length, 8);
+  assert.deepStrictEqual(findMatches(board), [], 'fallback fill must still avoid matches');
 });
 
 test('resolveBoard terminates even when a degenerate rng always refills the same gem', () => {
