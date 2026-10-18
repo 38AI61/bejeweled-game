@@ -3,10 +3,11 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { createGame, trySwap } = require('../game.js');
 
-// Deterministic rng helper (fresh copy per test).
+// Deterministic rng helper (fresh copy per test). Falls back to a varying
+// deterministic sequence; a constant fallback would wedge the fill logic.
 function makeRng(values) {
   let i = 0;
-  return () => values[i++] ?? 0.99;
+  return () => values[i++] ?? ((i * 37) % 101) / 101;
 }
 
 test('createGame initializes an 8x8 board, full moves, zero score, playing status', () => {

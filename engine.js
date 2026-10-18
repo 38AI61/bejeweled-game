@@ -22,6 +22,11 @@ function createBoard({ size, colors, rng = Math.random }) {
     }
     board.push(row);
   }
+  // The anti-match fill can still produce a dead board; repair it in place.
+  if (!hasValidMove(board)) {
+    const r = rearrangePlayable(board, rng);
+    if (r.ok) return r.board;
+  }
   return board;
 }
 
@@ -126,7 +131,79 @@ function resolveBoard(board, { colors, rng = Math.random, onClear = null }) {
   return current;
 }
 
-const api = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, resolveBoard };
+// Rearranges the EXISTING gems (exact multiset preserved) into a playable,
+// match-free board. Greedy placement avoids runs while consuming the pool;
+// pairwise swaps repair deadness. Returns { ok, board }.
+function rearrangePlayable(board, rng = Math.random) {
+  const size = board.length;
+  const cols = board[0].length;
+  const counts = new Map();
+  for (const gem of board.flat()) counts.set(gem, (counts.get(gem) || 0) + 1);
+  const colorsList = [...counts.keys()];
+  const avail = (g) => (counts.get(g) || 0) > 0;
+  const take = (g) => counts.set(g, counts.get(g) - 1);
+
+  const placed = [];
+  for (let r = 0; r < size; r++) placed.push(new Array(cols));
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < cols; c++) {
+      const forbidden = new Set();
+      if (c >= 2 && placed[r][c - 1] === placed[r][c - 2]) forbidden.add(placed[r][c - 1]);
+      if (r >= 2 && placed[r - 1][c] === placed[r - 2][c]) forbidden.add(placed[r - 1][c]);
+      let options = colorsList.filter((g) => avail(g) && !forbidden.has(g));
+      if (options.length === 0) options = colorsList.filter(avail);
+      if (options.length === 0) return { ok: false, board: null };
+      const gem = options[Math.floor(rng() * options.length)];
+      take(gem);
+      placed[r][c] = gem;
+    }
+  }
+  // Repair leftover matches: swap a matched gem with the first cell (reading
+  // order) holding a different color. Deterministic -> robust under any rng.
+  let guard = 0;
+  const cells = size * cols;
+  while (findMatches(placed).length > 0 && guard++ < 500) {
+    const m = findMatches(placed)[0];
+    let fixed = false;
+    for (let i = 0; i < cells && !fixed; i++) {
+      const r2 = Math.floor(i / cols);
+      const c2 = i % cols;
+      if ((r2 === m.r && c2 === m.c) || placed[m.r][m.c] === placed[r2][c2]) continue;
+      const a = placed[m.r][m.c];
+      const b = placed[r2][c2];
+      placed[m.r][m.c] = b;
+      placed[r2][c2] = a;
+      if (findMatches(placed).length === 0) fixed = true;
+      else {
+        placed[m.r][m.c] = a;
+        placed[r2][c2] = b;
+      }
+    }
+    if (!fixed) break;
+  }
+  // Repair deadness: deterministic sweep over same-color pair swaps; the first
+  // swap that yields a match-free board with a valid move wins.
+  outer: for (let i = 0; i < cells; i++) {
+    for (let j = i + 1; j < cells; j++) {
+      const r1 = Math.floor(i / cols);
+      const c1 = i % cols;
+      const r2 = Math.floor(j / cols);
+      const c2 = j % cols;
+      if (placed[r1][c1] === placed[r2][c2]) continue;
+      const a = placed[r1][c1];
+      const b = placed[r2][c2];
+      placed[r1][c1] = b;
+      placed[r2][c2] = a;
+      if (findMatches(placed).length === 0 && hasValidMove(placed)) break outer;
+      placed[r1][c1] = a;
+      placed[r2][c2] = b;
+    }
+  }
+  if (findMatches(placed).length > 0 || !hasValidMove(placed)) return { ok: false, board: placed };
+  return { ok: true, board: placed };
+}
+
+const api = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, resolveBoard, rearrangePlayable };
 // UMD: works as a CommonJS module (node --test) and as a browser global.
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else if (typeof window !== 'undefined') window.Engine = api;

@@ -260,10 +260,43 @@ test('resolveBoard includes the pre-clear board in each onClear event', () => {
   assert.notDeepStrictEqual(seenAfter, seen, 'after-board must differ from pre-clear board');
 });
 
-test('createBoard terminates and stays match-free even with a degenerate constant rng', () => {
+test('createBoard terminates, stays match-free, and is playable even with a degenerate constant rng', () => {
   const board = createBoard({ size: 8, colors: 6, rng: () => 0.42 });
   assert.strictEqual(board.length, 8);
   assert.deepStrictEqual(findMatches(board), [], 'fallback fill must still avoid matches');
+  assert.strictEqual(hasValidMove(board), true, 'created board must always be playable');
+});
+
+test('createBoard returns a playable board for a rng known to produce a dead fill', () => {
+  // LCG seed 3285 yields a match-free but dead 6x6 fill (found by scripts/probe-dead-board.js).
+  function lcg(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (1103515245 * s + 12345) >>> 0;
+      return s / 4294967296;
+    };
+  }
+  const board = createBoard({ size: 6, colors: 5, rng: lcg(3285) });
+  assert.strictEqual(hasValidMove(board), true, 'created board must be playable even when the raw fill is dead');
+});
+
+test('rearrangePlayable preserves the gem multiset and returns a playable board', () => {
+  const dead = [
+    [0, 1, 3, 3, 1, 1],
+    [3, 4, 0, 2, 0, 3],
+    [2, 2, 1, 3, 2, 4],
+    [0, 4, 4, 1, 0, 0],
+    [0, 3, 2, 2, 1, 0],
+    [3, 1, 1, 0, 3, 4],
+  ];
+  const { rearrangePlayable } = require('../engine.js');
+  const r = rearrangePlayable(dead, makeRng([]));
+  assert.strictEqual(r.ok, true);
+  const before = dead.flat().sort().join(',');
+  const after = r.board.flat().sort().join(',');
+  assert.strictEqual(after, before, 'gem multiset must be preserved');
+  assert.deepStrictEqual(findMatches(r.board), []);
+  assert.strictEqual(hasValidMove(r.board), true);
 });
 
 test('resolveBoard terminates even when a degenerate rng always refills the same gem', () => {
