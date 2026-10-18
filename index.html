@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bejeweled — Thunder Agent</title>
+<style>
+  :root {
+    --bg: #0f1226;
+    --panel: #1a1f3d;
+    --panel-edge: #2c3358;
+    --text: #e8eaf6;
+    --muted: #9aa3c7;
+    --accent: #ffc94d;
+    --cell: #232a52;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(1200px 800px at 50% -10%, #262c55 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { display: flex; gap: 28px; align-items: stretch; flex-wrap: wrap; justify-content: center; padding: 24px; }
+  .hud {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 14px;
+    padding: 20px 24px;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .hud h1 { margin: 0; font-size: 22px; letter-spacing: 1px; }
+  .hud h1 span { color: var(--accent); }
+  .stat { display: flex; justify-content: space-between; font-size: 15px; }
+  .stat .label { color: var(--muted); }
+  .stat .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+  #toast { min-height: 20px; color: var(--accent); font-size: 14px; }
+  button {
+    background: var(--accent);
+    border: 0;
+    color: #20180a;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(var(--n), 52px);
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 14px;
+    padding: 12px;
+    align-self: center;
+    touch-action: none;
+  }
+  .cell {
+    width: 52px; height: 52px;
+    border-radius: 10px;
+    background: var(--cell);
+    position: relative;
+    cursor: pointer;
+  }
+  .gem {
+    position: absolute; inset: 4px;
+    border-radius: 8px;
+    box-shadow: inset 0 -6px 10px rgba(0,0,0,.35), inset 0 3px 6px rgba(255,255,255,.35);
+    transition: transform .12s ease;
+  }
+  .gem:hover { transform: scale(1.06); }
+  .gem.sel { outline: 3px solid #fff; outline-offset: 1px; transform: scale(1.1); }
+  .gem.hint { outline: 3px dashed var(--accent); outline-offset: 1px; }
+  .gem.pop { animation: pop .32s ease forwards; }
+  .gem.fall { animation: fall .22s ease-in; }
+  .gem.new { animation: drop .24s ease-out; }
+  @keyframes pop { to { transform: scale(0); opacity: 0; } }
+  @keyframes fall { from { transform: translateY(-10px); } to { transform: translateY(0); } }
+  @keyframes drop { from { transform: translateY(-14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .g0 { background: linear-gradient(160deg,#ff7b7b,#c92a2a); border-radius: 50% 50% 45% 45%; }
+  .g1 { background: linear-gradient(160deg,#7bd67b,#1e7d32); clip-path: polygon(50% 4%, 96% 38%, 78% 96%, 22% 96%, 4% 38%); }
+  .g2 { background: linear-gradient(160deg,#7ec8ff,#1565c0); clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+  .g3 { background: linear-gradient(160deg,#ffe082,#f9a825); border-radius: 50%; }
+  .g4 { background: linear-gradient(160deg,#d1a7ff,#6a1fb0); clip-path: polygon(50% 0%, 100% 27%, 82% 95%, 18% 95%, 0% 27%); }
+  .g5 { background: linear-gradient(160deg,#80deea,#00838f); border-radius: 50% 12% 50% 12%; }
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,12,30,.72);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 16px;
+    padding: 30px 40px;
+    text-align: center;
+    box-shadow: 0 18px 60px rgba(0,0,0,.5);
+  }
+  .card h2 { margin: 0 0 8px; }
+  .card p { margin: 0 0 18px; color: var(--muted); }
+  .help { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hud">
+      <h1>Be<span>jeweled</span></h1>
+      <div class="stat"><span class="label">Score</span><span class="value" id="score">0</span></div>
+      <div class="stat"><span class="label">Moves left</span><span class="value" id="moves">30</span></div>
+      <div class="stat"><span class="label">Best cascade</span><span class="value" id="best-cascade">—</span></div>
+      <div id="toast"></div>
+      <button id="new-game">New game</button>
+      <button id="shuffle" style="background:#8f9bd4;color:#11142e">Shuffle (free)</button>
+      <p class="help">Click a gem, then an adjacent one — or drag.<br>
+      Match 3+ in a row to clear them. Chain cascades<br>for bonus points. When no moves remain the<br>board shuffles itself automatically.</p>
+    </div>
+    <div id="board" style="--n:8"></div>
+  </div>
+  <div class="overlay hidden" id="overlay">
+    <div class="card">
+      <h2 id="over-title">Game over</h2>
+      <p id="over-text"></p>
+      <button id="again">Play again</button>
+    </div>
+  </div>
+  <script src="engine.js"></script>
+  <script src="game.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
