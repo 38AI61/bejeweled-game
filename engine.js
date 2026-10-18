@@ -103,4 +103,21 @@ function hasValidMove(board) {
   return false;
 }
 
-module.exports = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove };
+const MAX_CASCADES = 100; // degenerate-rng safety: stop instead of looping forever
+
+function resolveBoard(board, { colors, rng = Math.random, onClear = null }) {
+  let current = board.map((row) => row.slice());
+  let cascade = 0;
+  for (;;) {
+    const matches = findMatches(current);
+    if (matches.length === 0 || cascade >= MAX_CASCADES) break;
+    if (onClear) onClear({ positions: matches, cascade });
+    const cleared = current.map((row) => row.slice());
+    for (const { r, c } of matches) cleared[r][c] = null;
+    current = resolveGravity(cleared, { colors, rng });
+    cascade++;
+  }
+  return current;
+}
+
+module.exports = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, resolveBoard };
