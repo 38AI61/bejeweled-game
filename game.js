@@ -1,5 +1,6 @@
 'use strict';
 // Game state layer on top of the pure engine: score, moves, status, shuffle.
+(function () {
 
 const Engine = typeof require === 'function' ? require('./engine.js') : window.Engine;
 const { createBoard, canSwap, resolveBoard, hasValidMove, findMatches } = Engine;
@@ -107,3 +108,5 @@ function ensurePlayable(game) {
 const gameApi = { createGame, trySwap, scoreFor, shuffleBoard, ensurePlayable };
 if (typeof module !== 'undefined' && module.exports) module.exports = gameApi;
 else if (typeof window !== 'undefined') window.Game = gameApi;
+
+})();

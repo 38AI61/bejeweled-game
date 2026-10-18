@@ -1,5 +1,6 @@
 'use strict';
 // Bejeweled match-3 engine (pure logic, no DOM).
+(function () {
 
 function createBoard({ size, colors, rng = Math.random }) {
   const board = [];
@@ -207,3 +208,5 @@ const api = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, r
 // UMD: works as a CommonJS module (node --test) and as a browser global.
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else if (typeof window !== 'undefined') window.Engine = api;
+
+})();

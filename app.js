@@ -184,6 +184,7 @@
 
   document.getElementById('new-game').addEventListener('click', newGame);
   document.getElementById('again').addEventListener('click', newGame);
+  boardEl.addEventListener('click', onCellClick);
   document.getElementById('shuffle').addEventListener('click', () => {
     if (animating || game.status !== 'playing') return;
     const r = ensurePlayable(game);
@@ -197,4 +198,6 @@
   });
 
   newGame();
+  // Read-only debug/test handle (lets browser tests locate valid swaps).
+  window.__bejeweled = { getGame: () => game, version: '1.0' };
 })();
