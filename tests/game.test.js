@@ -111,6 +111,48 @@ test('game ends when movesLeft hits 0 (status won/over) and no swap is accepted 
   assert.strictEqual(JSON.stringify(game.board), before, 'board frozen after game over');
 });
 
+test('ensurePlayable shuffles only a dead board and reports what it did', () => {
+  const { ensurePlayable } = require('../game.js');
+  const { hasValidMove, findMatches } = require('../engine.js');
+  // Playable board: untouched, shuffled:false.
+  const g1 = createGame({ size: 6, colors: 5, moves: 10, rng: makeRng([]) });
+  const before1 = JSON.stringify(g1.board);
+  const r1 = ensurePlayable(g1);
+  assert.strictEqual(r1.shuffled, false);
+  assert.strictEqual(JSON.stringify(g1.board), before1);
+  // Verified dead board: must become playable, match-free, same multiset.
+  const g2 = createGame({ size: 6, colors: 5, moves: 10, rng: makeRng([]) });
+  g2.board = [
+    [0, 1, 3, 3, 1, 1],
+    [3, 4, 0, 2, 0, 3],
+    [2, 2, 1, 3, 2, 4],
+    [0, 4, 4, 1, 0, 0],
+    [0, 3, 2, 2, 1, 0],
+    [3, 1, 1, 0, 3, 4],
+  ];
+  const r2 = ensurePlayable(g2);
+  assert.strictEqual(r2.shuffled, true);
+  assert.strictEqual(findMatches(g2.board).length, 0, 'shuffled board has no matches');
+  assert.ok(hasValidMove(g2.board), 'shuffled board has a valid move');
+});
+
+test('trySwap reports shuffled:true in its result when it had to reshuffle', () => {
+  // The flag must exist on the result object even when false.
+  const rng = makeRng([]);
+  const game = createGame({ size: 6, colors: 5, moves: 20, rng });
+  const { canSwap } = require('../engine.js');
+  let move = null;
+  outer: for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 6; c++) {
+      if (c + 1 < 6 && canSwap(game.board, r, c, r, c + 1)) { move = [r, c, r, c + 1]; break outer; }
+      if (r + 1 < 6 && canSwap(game.board, r, c, r + 1, c)) { move = [r, c, r + 1, c]; break outer; }
+    }
+  }
+  const result = trySwap(game, ...move);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(typeof result.shuffled, 'boolean', 'result must carry a shuffled flag');
+});
+
 test('shuffleBoard rearranges a dead board so that it has a valid move', () => {
   const { shuffleBoard } = require('../game.js');
   const rng = makeRng([]);

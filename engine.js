@@ -126,4 +126,7 @@ function resolveBoard(board, { colors, rng = Math.random, onClear = null }) {
   return current;
 }
 
-module.exports = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, resolveBoard };
+const api = { createBoard, findMatches, canSwap, resolveGravity, hasValidMove, resolveBoard };
+// UMD: works as a CommonJS module (node --test) and as a browser global.
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+else if (typeof window !== 'undefined') window.Engine = api;

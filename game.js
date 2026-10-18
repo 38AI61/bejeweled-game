@@ -1,7 +1,8 @@
 'use strict';
 // Game state layer on top of the pure engine: score, moves, status, shuffle.
 
-const { createBoard, canSwap, resolveBoard, hasValidMove, findMatches } = require('./engine.js');
+const Engine = typeof require === 'function' ? require('./engine.js') : window.Engine;
+const { createBoard, canSwap, resolveBoard, hasValidMove, findMatches } = Engine;
 
 function scoreFor(runLen) {
   if (runLen >= 6) return 150;
@@ -68,8 +69,8 @@ function trySwap(game, r1, c1, r2, c2, { onClear = null } = {}) {
   game.score += gained;
   game.movesLeft -= 1;
   if (game.movesLeft <= 0) game.status = 'over';
-  if (!hasValidMove(game.board)) shuffleBoard(game, game.rng); // keep the board playable, free of charge
-  return { ok: true, gained, cascades };
+  const play = ensurePlayable(game); // keep the board playable, free of charge
+  return { ok: true, gained, cascades, shuffled: play.shuffled };
 }
 
 // Rearranges the existing gems until the board is playable (no matches, at
@@ -93,4 +94,16 @@ function shuffleBoard(game, rng = Math.random) {
   return { ok: true, reshuffled: true, fresh: true };
 }
 
-module.exports = { createGame, trySwap, scoreFor, shuffleBoard };
+// Keep the board playable: no-op on a live board, shuffle on a dead one.
+// The game overwrites its board in place; the result tells the UI what happened.
+function ensurePlayable(game) {
+  if (findMatches(game.board).length > 0 || !hasValidMove(game.board)) {
+    const r = shuffleBoard(game, game.rng);
+    return { shuffled: true, fresh: r.fresh === true };
+  }
+  return { shuffled: false, fresh: false };
+}
+
+const gameApi = { createGame, trySwap, scoreFor, shuffleBoard, ensurePlayable };
+if (typeof module !== 'undefined' && module.exports) module.exports = gameApi;
+else if (typeof window !== 'undefined') window.Game = gameApi;
